@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<!-- Head tag -->
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!--Description-->
+    
+        <meta name="description" content="深入理解Synchronized关键字在上一篇文章中对synchronized关键字基本用法做了介绍，这篇文章主要介绍synchronized原理。
+我们知道当一个线程试图访问同步代码块时，必须先获取锁，执行完毕后或抛出异常释放锁，而锁存在哪里，如何获取，锁里面存放的信息时本文探讨的对象。
+锁存放的">
+    
+
+    <!--Author-->
+    
+        <meta name="author" content="John Doe">
+    
+
+    <!--Open Graph Title-->
+    
+        <meta property="og:title" content="深入理解Synchronized关键字"/>
+    
+
+    <!--Open Graph Description-->
+    
+
+    <!--Open Graph Site Name-->
+    <meta property="og:site_name" content="Hexo"/>
+
+    <!--Type page-->
+    
+        <meta property="og:type" content="article" />
+    
+
+    <!--Page Cover-->
+    
+
+    <meta name="twitter:card" content="summary" />
+    
+
+    <!-- Title -->
+    
+    <title>深入理解Synchronized关键字 - Hexo</title>
+
+    <!-- Tachyons Core CSS -->
+    <link rel="stylesheet" href="//unpkg.com/tachyons/css/tachyons.min.css">
+
+    <!-- Custom Fonts -->
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="//oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="//oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/style.css">
+
+    <!-- Google Analytics -->
+    
+
+
+</head>
+
+
+<body>
+
+<!-- Main Content -->
+<!-- Banner -->
+<!-- Banner -->
+<div class="w-100 bg-1 ph5-ns ph3 text-light">
+    
+    <nav class="db dt-l w-100 mw8 center border-box pv3">
+        <a class="db dtc-l v-mid link dim w-100 w-25-l tc tl-l mb2 mb0-l white" href="/" title="Hexo">
+            <img src="http://www.codeblocq.com/assets/projects/hexo-theme-anodyne/assets/anodyne.svg" class="dib h3" alt="Hexo">
+        </a>
+        <div class="db dtc-l v-mid w-100 w-75-l tc tr-l">
+            
+                <a class="link dim f6 f5-l dib mr3 mr4-l white" 
+                    href="/" 
+                    title="Home">
+                    Home
+                </a>
+            
+                <a class="link dim f6 f5-l dib mr3 mr4-l white" 
+                    href="/archives" 
+                    title="Archives">
+                    Archives
+                </a>
+            
+                <a class="link dim f6 f5-l dib mr3 mr4-l white" 
+                    href="/tags" 
+                    title="Tags">
+                    Tags
+                </a>
+            
+                <a class="link dim f6 f5-l dib mr3 mr4-l white" 
+                    href="/categories" 
+                    title="Categories">
+                    Categories
+                </a>
+            
+                <a class="link dim f6 f5-l dib mr3 mr4-l white" 
+                    href="/about.html" 
+                    title="About">
+                    About
+                </a>
+            
+                <a class="link dim f6 f5-l dib mr3 mr4-l white" 
+                    href="/contact.html" 
+                    title="Contact">
+                    Contact
+                </a>
+            
+        </div>
+    </nav>
+
+    <!-- Title -->
+    <div class="w-100 mw8 center vh-40 dt">
+        <div class="dtc v-mid white">
+            <h1 class="f1-l f2-m tc tc-m tl-ns">深入理解Synchronized关键字</h1>
+            <p class="f4 fw3 pab-100px tc tc-m tl-ns">2018-10-13</p>
+        </div>
+    </div>
+
+    <!-- Icon -->
+    <div class="relative w-100 mw8 center white dn dn-m db-ns">
+        <i class="header-icon fa fa-file-text-o"></i>
+    </div>
+</div>
+
+<!-- Content -->
+<div class="w-100 ph2 ph4-m ph5-l mv5 mv6-l">
+    <div class="content">
+        <div class="mw8 center">
+            <div class="cf">
+                <div class="fl w-100 w-70-l mw7 left fw3 lh-copy pr4-ns pr0-m post-content">
+                    <!-- Tags Vertical -->
+                    
+                        <div class="tags-container-vertical">
+                            <div class="tags-sub-container">
+                                <a class="fw3 ph1 dib" href="/tags/并发/">#并发</a>
+                            </div>
+                        </div>
+                    
+
+                    <!-- Main Post Content -->
+                    <h1 id="深入理解Synchronized关键字"><a href="#深入理解Synchronized关键字" class="headerlink" title="深入理解Synchronized关键字"></a>深入理解Synchronized关键字</h1><p>在<a href="Synchronized关键字.md">上一篇</a>文章中对<code>synchronized</code>关键字基本用法做了介绍，这篇文章主要介绍<code>synchronized</code>原理。</p>
+<p>我们知道当一个线程试图访问同步代码块时，必须先获取锁，执行完毕后或抛出异常释放锁，而锁存在哪里，如何获取，锁里面存放的信息时本文探讨的对象。</p>
+<h3 id="锁存放的位置"><a href="#锁存放的位置" class="headerlink" title="锁存放的位置"></a>锁存放的位置</h3><p><code>synchronized</code>关键字是存放在Java对象头中的，Java对象头包含一下信息：</p>
+<table>
+<thead>
+<tr>
+<th>长度</th>
+<th>内容</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>32/64bit</td>
+<td>Mark Word</td>
+<td>储存对象的hashcode或锁信息</td>
+</tr>
+<tr>
+<td>32/64bit</td>
+<td>Class Metadata Address</td>
+<td>类型指针指向对象的类元数据，JVM通过这个指针确定该对象是哪个类的实例。</td>
+</tr>
+<tr>
+<td>32/64bit</td>
+<td>Array Length</td>
+<td>数组长度</td>
+</tr>
+</tbody>
+</table>
+<p>其中锁标志位存在于Mark Word 中：</p>
+<table>
+<thead>
+<tr>
+<th>锁状态</th>
+<th>25bit</th>
+<th>4bit</th>
+<th>1bit</th>
+<th>2bit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>无锁状态</td>
+<td>hashcode</td>
+<td>对象分代年龄</td>
+<td>是否偏向锁 0</td>
+<td>锁标志位 01</td>
+</tr>
+</tbody>
+</table>
+<p>运行时，<code>Mark Word</code>数据会随锁标志变化而变化：</p>
+<table><br>    <tr><br>        <td rowspan="2">锁状态</td><br>        <td colspan="2">25bit</td><br>        <td rowspan="2">4bit</td><br>        <td>1bit</td><br>        <td>2bit</td><br>    </tr><br>    <tr><br>        <td>23bit</td><br>        <td>2bit</td><br>        <td>是否偏向锁</td><br>        <td>锁标志位</td><br>    </tr><br>    <tr><br>        <td>偏向锁</td><br>        <td>线程Id</td><br>        <td>Epoch</td><br>        <td>对象分代年龄</td><br>        <td>1</td><br>        <td>01</td><br>    </tr><br>    <tr><br>    <td>轻量级锁</td><br>    <td colspan="4">指向栈中锁记录的指针</td><br>    <td>00</td><br>    </tr><br>     <tr><br>    <td>重量级锁</td><br>    <td colspan="4">指向互斥量（重量级锁）的指针</td><br>    <td>10</td><br>   </tr><br> <tr><br>    <td>GC标志</td><br>    <td colspan="4">空</td><br>    <td>11</td><br></tr><br></table>
+
+<p>在Jdk1.6之后，新增了轻量级锁和偏向锁，从上表可以看出，锁分为重量级锁、轻量级锁、偏向锁，其带来的性能消耗是依次减少的，锁可以升级但不能降级，比如偏向锁可以升级为轻量级锁，但是轻量级锁不可降级为偏向锁，其目的是为了减少释放锁带来的性能消耗。</p>
+<h3 id="偏向锁"><a href="#偏向锁" class="headerlink" title="偏向锁"></a>偏向锁</h3><p>偏向锁是Jdk1.6引入的，Hotspot作者研究发现锁总是由同一个线程多次获得，因此引入偏向锁的概念。</p>
+<p>当一个线程获取到锁且当前状态为偏向锁时，会在<code>Mark Word</code>中设置该线程Id，当该线程再次获取锁时，只需要对比当前线程Id与锁记录线程Id是否相同，相同则可以再次获取锁，如果失败了，在查看偏向锁标志是否为1，如果是则尝试使用CAS将锁记录的线程ID指向当前线程，否则使用CAS竞争锁，此时偏向锁会膨胀为轻量级锁。</p>
+<p>由偏向锁原理可知，偏向锁适用的场景为同一线程多次获得锁的情况，假如应用场景为每次获取锁的几乎都是不同的线程，那么偏向锁在这里就不适用了，否则可能会来带额外的性能消耗。</p>
+<h3 id="轻量级锁"><a href="#轻量级锁" class="headerlink" title="轻量级锁"></a>轻量级锁</h3><p>轻量级锁也是Jdk1.6之后引入的，当偏向锁竞争失败后，锁会膨胀为轻量级锁。</p>
+<p>在执行同步代码块之前，线程会将对象头的<code>Mark Word</code>复制到当前栈桢中储存锁记录的空间，当一个线程获取到轻量级锁时，会使用CAS将对象头的Mark Word替换为指向当前线程的指针，如果成功则获取到锁，失败则使用自旋等待锁。</p>
+<p>当轻量级锁解锁时，线程会CAS对象头替<code>Mark Word</code>替换为加锁时复制的<code>Mark Word</code>，如果成功则释放，如果失败，则表示有其他线程在竞争锁，此时锁会膨胀为重量级锁。</p>
+<p>….未完待续</p>
+
+                    
+                    <!-- Tags Bottom -->
+                    
+                        <div class="tags-container-bottom">
+                            <i class="fa fa-tag pr3 text-main-color"></i><a class="fw3 ph1 dib" href="/tags/并发/">#并发</a>
+                        </div>
+                    
+
+                    <!-- Comments -->
+                    
+
+
+
+                </div>
+                <div class="fl w-100 w-30-l center fw3 lh-copy pl4-ns tl black-50">
+                    
+                    <hr class="dn-l mw4 black-50 mt5" />
+                    
+                    <!-- Widget 1: About -->
+                    <div class="mt5 mt0-l">
+    <article class="dt db-l mw8 mw8-m mw5-ns center ml0-l bg-white mv3">
+        <div class="dn dtc-m db-l v-mid tc pr4 pr0-l" style="min-width: 6rem;">
+            <img src="http://tachyons.io/img/avatar_1.jpg" class="mb4-l br-100 h3 w3 h4-l w4-l dib" title="John Doe">
+        </div>
+        <div class="dtc db-l v-mid lh-copy measure center f6 black-50 tj">
+            My name is Jonathan Klughertz and this is my blog.<br>I am a full stack software engineer with a strong front-end focus.<br> I currently live and work in Singapore, hit me up if you are in the region.
+        </div>
+    </article>
+</div>
+
+                    <hr class="dn-l mw4 black-50 mt5" />
+                    
+                    <!-- Widget 2: Categories -->
+                    
+                        <div class="mt5 tc tl-l">
+    <h3>Categories</h3>
+    
+        <p>
+            <a href="/categories/java/">java</a>
+        </p>
+    
+</div>
+
+
+                        <hr class="dn-l mw4 black-50 mt5" />
+                    
+
+                    <!-- Widget 3: Recent Posts -->
+                    <div class="mt5 tc tl-l">
+    <h3>Recent Posts</h3>
+    
+        <p>
+            <a href="/2018/10/13/Synchronized关键字/">Synchronized关键字</a>
+        </p>
+    
+        <p>
+            <a href="/2018/10/13/深入理解Synchronized关键字/">深入理解Synchronized关键字</a>
+        </p>
+    
+        <p>
+            <a href="/2018/10/09/redis面试题/">redis面试题</a>
+        </p>
+    
+</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Footer -->
+<div class="bg-1 ph2 ph5-ns pv5">
+        <div class="mv8">
+            <div class="center tc">
+                
+                    <div class="dib mh3">
+                        <a class="f3 f2-ns white dim" href="https://twitter.com/?lang=en" target="_blank">
+                            <i class="fa fa-twitter"></i>
+                        </a>
+                    </div>
+                
+                    <div class="dib mh3">
+                        <a class="f3 f2-ns white dim" href="https://www.facebook.com/" target="_blank">
+                            <i class="fa fa-facebook"></i>
+                        </a>
+                    </div>
+                
+                    <div class="dib mh3">
+                        <a class="f3 f2-ns white dim" href="https://dribbble.com/" target="_blank">
+                            <i class="fa fa-dribbble"></i>
+                        </a>
+                    </div>
+                
+                    <div class="dib mh3">
+                        <a class="f3 f2-ns white dim" href="https://github.com/klugjo/hexo-theme-anodyne" target="_blank">
+                            <i class="fa fa-github"></i>
+                        </a>
+                    </div>
+                
+                    <div class="dib mh3">
+                        <a class="f3 f2-ns white dim" href="https://plus.google.com/" target="_blank">
+                            <i class="fa fa-google-plus"></i>
+                        </a>
+                    </div>
+                
+                    <div class="dib mh3">
+                        <a class="f3 f2-ns white dim" href="https://www.behance.net/" target="_blank">
+                            <i class="fa fa-behance"></i>
+                        </a>
+                    </div>
+                
+                    <div class="dib mh3">
+                        <a class="f3 f2-ns white dim" href="https://500px.com/" target="_blank">
+                            <i class="fa fa-500px"></i>
+                        </a>
+                    </div>
+                
+                    <div class="dib mh3">
+                        <a class="f3 f2-ns white dim" href="mailto:test@example.com" target="_blank">
+                            <i class="fa fa-envelope"></i>
+                        </a>
+                    </div>
+                
+                    <div class="dib mh3">
+                        <a class="f3 f2-ns white dim" href="/#" target="_blank">
+                            <i class="fa fa-rss"></i>
+                        </a>
+                    </div>
+                
+            </div>
+            <div class="f6 f5-ns center tc white pt5 fw3">
+                @Untitled. All right reserved | Design & Hexo <a class="link dim white" href="http://www.codeblocq.com/">Jonathan Klughertz</a>
+            </div>
+        </div>
+    </div>
+
+<!-- After Footer -->
+<!-- Disqus Comments -->
+
+
+
+</body>
+
+</html>
